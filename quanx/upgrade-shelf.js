@@ -21,13 +21,10 @@ $.upgradeGolds = [];
 
 async function upgrade(cookie) {
   const {
-    data: { bizCode, result = [] },
+    data: { bizCode, result: {shelfList = []} },
   } = await getShelfList(cookie);
   if (bizCode === 0) {
-    const canUnlockShelves = result.shelfList.filter((x) => x.unlockStatus === 1);
-    const canUpgradeShelves = result.shelfList.filter(
-      (x) => x.upgradeStatus === 1
-    );
+    const canUnlockShelves = shelfList.filter((x) => x.unlockStatus === 1);
     console.log(`\n待解锁货架数量${canUnlockShelves.length}个\n`);
     for (let item of canUnlockShelves) {
       const { name, shelfId } = item;
@@ -36,6 +33,10 @@ async function upgrade(cookie) {
       $.unlockGolds += parseInt(gold);
     }
     $.result.push(`解锁货架${canUnlockShelves.length}个，总花费 ${$.unlockGolds}`);
+
+    const canUpgradeShelves = shelfList.filter(
+      (x) => x.upgradeStatus === 1
+    );
     console.log(`\n待升级货架数量${canUpgradeShelves.length}个\n`);
     for (let item of canUpgradeShelves) {
       const { name, level, maxLevel, upgradeCostGold, shelfId } = item;
@@ -75,7 +76,7 @@ function upgradeShelf(shelfId, cookie, level) {
           console.log(`\n${bizMsg}`);
           $.upgradeGolds.push(parseInt(result.costGold))
           if (level > 1) {
-            await upgrade(shelfId, cookie, level - 1);
+            await upgradeShelf(shelfId, cookie, level - 1);
           }
         } catch (e) {
           $.logErr(e, resp);
