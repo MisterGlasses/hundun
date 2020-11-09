@@ -44,9 +44,10 @@ function getLocation() {
           $.done();
         }
       }
-      if (GEO_REGEX.test($request.url)) {
+      if (GEO_REGEX.test($request.url) && $request.body) {
         try {
-          $.setdata($request.url, "caiyun_location");
+          const location = $request.body.match(/location=(\S*)&/)[1];
+          $.setdata(location, "caiyun_location");
         } catch (e) {
           $.logErr(e, $request.response);
         } finally {
