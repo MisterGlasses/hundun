@@ -6,7 +6,7 @@ const addUrl = "http://jd.turinglabs.net/helpcode/create/";
 $.shareCodeLinks = [];
 $.result = [];
 $.cookieArr = [];
-$.random = Math.floor(Math.random()*900);
+$.random = Math.floor(Math.random());
 
 !(async () => {
   if (!getCookies()) return;
