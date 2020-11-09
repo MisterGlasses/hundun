@@ -23,10 +23,10 @@ async function upgrade(cookie) {
     data: { bizCode, result = [] },
   } = await getProductList(cookie);
   if (bizCode === 0) {
-    const canUpgradeProducts = result.shelfList.map(
+    const canUpgradeProducts = result.shelfList.filter(
       (x) => x.upgradeStatus === 1
     );
-    const canUnlockProducts = result.shelfList.map((x) => x.unlockStatus === 1);
+    const canUnlockProducts = result.shelfList.filter((x) => x.unlockStatus === 1);
     console.log(`\n待解锁商品数量${canUnlockProducts.length}个\n`);
     for (let item of canUnlockProducts) {
       const { name, productId } = item;
@@ -125,6 +125,13 @@ function getCookies() {
     return false;
   }
   return true;
+}
+
+function showMsg() {
+  return new Promise((resolve) => {
+    $.msg($.name, "", $.result.join("\n"));
+    resolve();
+  });
 }
 
 function taskUrl(function_id, body = {}, cookie) {
