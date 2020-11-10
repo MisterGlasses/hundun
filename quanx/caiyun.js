@@ -6,7 +6,6 @@ const GEO_REGEX = /https?:\/\/restapi\.amap\.com\/v3\/geocode/;
 !(async () => {
   await getLocation();
   await getWeather();
-  await showMsg();
 })()
   .catch((e) => $.logErr(e))
   .finally(() => $.done());
@@ -16,7 +15,7 @@ function getLocation() {
     if ($.isRequest) {
       if (GEO_REGEX.test($request.url) && $request.body) {
         try {
-          const location = $request.body.match(/location=(\S*)&radius=/)[1];
+          const location = decodeURIComponent($request.body.match(/location=(\S*)&radius=/)[1]);
           $.setdata(location, "caiyun_location");
           $.msg($.name, '', '获取位置信息成功');
         } catch (e) {
@@ -41,26 +40,66 @@ function getWeather() {
         "【提示】请先打开彩云天气获取一次位置信息",
         {"open-url": ``}
       );
+      resolve()
     }
-    const [latitude,longitude] = locationData;
+    const [longitude, latitude] = locationData.split(',');
     const weatherReq = "https://api.openweathermap.org/data/2.5/onecall?lat=" + latitude + "&lon=" + longitude + "&exclude=minutely,alerts&units=metric&lang=zh_cn&appid=16b236cf5334d422d365bf95b4c32136";
     $.get({ url: weatherReq }, async (err, resp, data) => { 
       try {
-        console.log(`\n${data}`)
+        const result = {};
+        const { current, daily: [today, tomorrow], hourly: [, nextHour], message } = JSON.parse(data);
+        if (message) {
+          $.result.push(_data.message)
+          resolve();
+        }
+
+        result.currentTemp = current.temp
+        result.currentFeelsLike = current.feels_like
+        result.currentCondition = current.weather[0].icon
+        result.currentDescription = current.weather[0].description
+        result.todaySunrise = current.sunrise
+        result.todaySunset = current.sunset
+        result.todayHigh = today.temp.max
+        result.todayLow = today.temp.min
+      
+        result.nextHourTemp = nextHour.temp
+        result.nextHourFeelsLike = nextHour.feels_like
+        result.nextHourCondition = nextHour.weather[0].icon
+        result.nextHourDescription = nextHour.weather[0].description
+      
+        result.tomorrowHigh = tomorrow.temp.max
+        result.tomorrowLow = tomorrow.temp.min
+        result.tomorrowCondition = tomorrow.weather[0].icon
+        result.tomorrowDescription = tomorrow.weather[0].description
+        result.tomorrowSunrise = tomorrow.sunrise
+        result.tomorrowSunset = tomorrow.sunset
+
+        $.msg(
+          `[当前天气] ${result.currentDescription}  ${result.currentTemp} ℃  🌡体感 ${result.currentFeelsLike} ℃`,
+          `[一小时后] ${result.nextHourDescription}  ${result.nextHourTemp} ℃  🌡体感 ${result.nextHourFeelsLike} ℃`,
+          `[今天] ${result.todayLow} ℃ - ${result.todayHigh} ℃\n🌄日出 ${getTime(result.todaySunrise)} 🌅日落 ${getTime(result.todaySunset)}\n[明天] ${result.tomorrowDescription} ${result.tomorrowLow} ℃ - ${result.tomorrowHigh} ℃\n🌄日出 ${getTime(result.tomorrowSunrise)} 🌅日落 ${getTime(result.tomorrowSunset)}`
+          ,
+          {
+            "media-url": `http://openweathermap.org/img/wn/${result.currentCondition}@4x.png`,
+          }
+        )
       } catch (e) {
         $.logErr(e, resp);
       } finally {
-        resolve(data);
+        resolve();
       }
     })
   })
 }
 
-function showMsg() {
-  return new Promise((resolve) => {
-    $.msg($.name, "", $.content);
-    resolve();
-  });
+function getTime(number) {
+  const date = new Date(number * 1000);
+  const hour = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
+  const minutes =
+    date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
+  const seconds =
+    date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds();
+  return `${hour}:${minutes}:${seconds}`;
 }
 
 // prettier-ignore
