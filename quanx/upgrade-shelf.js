@@ -26,26 +26,31 @@ async function upgrade(cookie) {
   if (bizCode === 0) {
     const canUnlockShelves = shelfList.filter((x) => x.unlockStatus === 1);
     console.log(`\n待解锁货架数量${canUnlockShelves.length}个\n`);
-    for (let item of canUnlockShelves) {
-      const { name, shelfId } = item;
-      console.log(`\n开始解锁 [${name}]`);
-      const gold = await unlockShelf(shelfId, cookie) || '0';
-      $.unlockGolds += parseInt(gold);
+    if (canUnlockShelves.length > 0) {
+      for (let item of canUnlockShelves) {
+        const { name, shelfId } = item;
+        console.log(`\n开始解锁 [${name}]`);
+        const gold = await unlockShelf(shelfId, cookie) || '0';
+        $.unlockGolds += parseInt(gold);
+      }
+      $.result.push(`解锁货架${canUnlockShelves.length}个，总花费 ${$.unlockGolds}`);
     }
-    $.result.push(`解锁货架${canUnlockShelves.length}个，总花费 ${$.unlockGolds}`);
 
     const canUpgradeShelves = shelfList.filter(
       (x) => x.upgradeStatus === 1
-    );
+    ).sort((a, b) => a.level - b.level);
+    let upgradeShelfNumber = 0;
     console.log(`\n待升级货架数量${canUpgradeShelves.length}个\n`);
     for (let item of canUpgradeShelves) {
       const { name, level, maxLevel, upgradeCostGold, shelfId } = item;
       console.log(
         `\n开始升级 [${name}]，当前 ${level} 级，升级花费 ${upgradeCostGold}，最大升级到 ${maxLevel} 级`
       );
-      await upgradeShelf(shelfId, cookie, $.level);
+      const result = await upgradeShelf(shelfId, cookie, $.level);
+      if (!result) break;
+      upgradeShelfNumber++;
     }
-    $.result.push(`升级货架${canUpgradeShelves.length}个 ${$.level} 级，总花费 ${$.upgradeGolds.reduce((prev, curr) => prev + curr)}`);
+    $.result.push(`升级货架${upgradeShelfNumber}个 ${$.level} 级，总花费 ${$.upgradeGolds.reduce((prev, curr) => prev + curr)}`);
   }
 }
 
@@ -74,14 +79,18 @@ function upgradeShelf(shelfId, cookie, level) {
             data: { bizCode, bizMsg, result },
           } = JSON.parse(data);
           console.log(`\n${bizMsg}`);
-          $.upgradeGolds.push(parseInt(result.costGold))
+          if (bizMsg === 'success') {
+            $.upgradeGolds.push(parseInt(result.costGold))
+          } else {
+            resolve(false);
+          }
           if (level > 1) {
             await upgradeShelf(shelfId, cookie, level - 1);
           }
         } catch (e) {
           $.logErr(e, resp);
         } finally {
-          resolve();
+          resolve(true);
         }
       }
     );
