@@ -1,11 +1,10 @@
 const didiTokenKey = "didi_token";
 const didiCityIdKey = "didi_city_id";
 const didiLidKey = "didi_lid";
-const didiMySourceIdKey = "didi_my_source_id";
 const didiActivityIdKey = "didi_activity_id";
 const didiChannelIdKey = "didi_channel_id";
 const getTokenRegex = /^https?:\/\/api\.didialift\.com\/beatles\/userapi\/user\/user\/getuserinfo?.*city_id=(\d+).*&token=([^&]*)/;
-const getTokenRegex2 = /^https?:\/\/as\.xiaojukeji\.com\/ep\/as\/toggles\?.*location_cityid=(\d+).*&ticket=([^&]*)/;
+const getTokenRegex2 = /^https:\/\/as\.xiaojukeji\.com\/ep\/as\/toggles\?.*city=(\d*)&.*ticket=(.*)&/;
 const getLidRegex = /^https?:\/\/bosp-api\.xiaojukeji\.com\/bosp-api\/lottery\/info?.*lid=([^&]*)/;
 const getActivityIdRegex = /^https?:\/\/manhattan\.webapp\.xiaojukeji\.com\/marvel\/api\/manhattan\-signin\-task\/signIn\/execute/;
 const $ = new Env("滴滴出行Cookie");
@@ -22,37 +21,27 @@ if (getTokenRegex.test(url) || getTokenRegex2.test(url)) {
     }
     let cityId = arr[1];
     let token = arr[2];
-    let hisToken = magicJS.read(didiTokenKey);
+    let hisToken = $.getdata(didiTokenKey);
     $.log(`city：${cityId}，token：${token}`);
     $.setdata(cityId, didiCityIdKey);
-    if (token !== hisToken) {
-      $.setdata(token, didiTokenKey);
-      $.log(`新的Token：\n${token}，旧的Token：\n${hisToken}，Token已更新。`);
-      $.msg("🎉滴滴出行写入Token成功！！");
-    } else {
-      $.log(
-        `新的Token：\n${token}，旧的Token：\n${hisToken}，滴滴出行Token没有变化，无需更新。`
-      );
-    }
+    $.setdata(token, didiTokenKey);
+    $.log(`新的Token：\n${token}，旧的Token：\n${hisToken}，Token已更新。`);
+    $.msg($.name, "🎉滴滴出行写入Token成功！！");
   } catch (err) {
     $.logErr(`滴滴出行写入Token失败，执行异常：${err}。`);
-    $.msg("❌滴滴出行写入Token失败");
+    $.msg($.name, "❌滴滴出行写入Token失败");
   }
 } else if (getLidRegex.test(url)) {
   try {
     let arr = url.match(getLidRegex);
     let lid = arr[1];
-    let hisLid = magicJS.read(didiLidKey);
+    let hisLid = $.getdata(didiLidKey);
     $.log(`新的lid：${lid}，旧的lid：${hisLid}`);
-    if (lid !== hisLid) {
-      $.setdata(lid, didiLidKey);
-      $.msg("🎉滴滴出行写入lid成功！！");
-    } else {
-      $.log(`滴滴出行lid没有变化，无需更新。lid：${lid}`);
-    }
+    $.setdata(lid, didiLidKey);
+    $.msg($.name, "🎉滴滴出行写入lid成功！！");
   } catch (err) {
     $.logErr(`滴滴出行写入lid失败，执行异常：${err}。`);
-    $.msg("❌滴滴出行写入lid失败");
+    $.msg($.name, "❌滴滴出行写入lid失败");
   }
 } else if (getActivityIdRegex.test(url)) {
   try {
@@ -62,10 +51,10 @@ if (getTokenRegex.test(url) || getTokenRegex2.test(url)) {
     $.log(
       `获取天天有奖ActivityId和ChannelId成功：${obj.activityId}，${obj.channelId}`
     );
-    $.msg("获取天天有奖ActivityId和ChannelId成功");
+    $.msg($.name, "获取天天有奖ActivityId和ChannelId成功");
   } catch (err) {
     $.logErr(`获取天天有奖ActivityId异常：${err}`);
-    $.msg("❌获取天天有奖ActivityId异常");
+    $.msg($.name, "❌获取天天有奖ActivityId异常");
   }
 }
 
