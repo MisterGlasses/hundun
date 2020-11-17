@@ -74,11 +74,11 @@
       "keys": ["zd_shelf_level", "zd_product_level"],
       "settings": [
         {
-          "id": "zd_shelf_level",
-          "name": "升级货架等级",
-          "val": "",
-          "type": "text",
-          "desc": "填写每次需要自动升级的货架的等级，默认自动升一级."
+          "id": "zd_upgrade_cheapest_product",
+          "name": "只升级等级最低的一件商品且消耗200万金币以下",
+          "val": true,
+          "type": "boolean",
+          "desc": "完成超市赚钱升级商品任务200万金币"
         },
         {
           "id": "zd_product_level",
@@ -86,6 +86,13 @@
           "val": "",
           "type": "text",
           "desc": "填写每次需要自动升级的商品的等级，默认自动升一级."
+        },
+        {
+          "id": "zd_shelf_level",
+          "name": "升级货架等级",
+          "val": "",
+          "type": "text",
+          "desc": "填写每次需要自动升级的货架的等级，默认自动升一级."
         }
       ],
       "author": "@whyour",
@@ -124,6 +131,20 @@
       "icons": [
         "https://raw.githubusercontent.com/Orz-3/mini/master/didi.png",
         "https://raw.githubusercontent.com/Orz-3/task/master/didi.png"
+      ]
+    },
+    {
+      "id": "test",
+      "name": "测试box更新",
+      "keys": [
+        "test"
+      ],
+      "author": "@whyour",
+      "repo": "https://raw.githubusercontent.com/chavyleung/scripts/master/box/chavy.boxjs.js",
+      "script": "https://raw.githubusercontent.com/chavyleung/scripts/master/box/chavy.boxjs.js",
+      "icons": [
+        "https://raw.githubusercontent.com/Orz-3/mini/master/box.png",
+        "https://raw.githubusercontent.com/Orz-3/task/master/box.png"
       ]
     }
   ]
