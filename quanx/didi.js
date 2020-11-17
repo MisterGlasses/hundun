@@ -25,7 +25,6 @@ $.result = [];
   await goldLottery();
   await dayLottery();
   await getOrderGold();
-  await getUserInfo();
   await showMsg();
 })()
   .catch((e) => $.logErr(e))
@@ -71,13 +70,16 @@ function checkIn() {
               sign.sign.subsidy_state.subsidy_amount +
                 sign.sign.subsidy_state.extra_subsidy_amount
             );
-            $.result.push(`🚕滴滴出行签到成功！ 获取${subsidy}福利金！`);
-            $.result.push(`账户共${balance}福利金，可抵扣${balance / 100}元。`);
+            $.result.push(
+              `🚕[签到] 签到成功！获得${subsidy}福利金！账户共${welfare.balance}福利金`
+            );
           } else {
-            $.result.push(`🚕滴滴出行今天已经签到过了。`);
+            $.result.push(
+              `🚕[签到] 今天已经签到过了。账户共${welfare.balance}福利金`
+            );
           }
         } else {
-          $.result.push(`签到失败，${obj.errmsg}`);
+          $.result.push(`🚕[签到] 签到失败，${obj.errmsg}`);
         }
       } catch (err) {
         $.logErr(e, resp);
@@ -124,14 +126,23 @@ function collectPoint() {
       },
       body: `app_id=common&token=${$.token}`,
     };
-    $.post(options, (err, resp, data) => {
+    $.post(options, async (err, resp, data) => {
       try {
         $.log(`领取积分接口响应：${data}`);
         let obj = JSON.parse(data);
+        const {
+          account: {
+            dcoin: { coin, expire_balance, expire_date },
+          },
+        } = await getUserInfo();
         if (obj.errno === 0) {
-          $.result.push("领取积分完成");
+          $.result.push(
+            `🚕[积分] 领取成功, 账户共有积分${coin}\n${expire_balance}积分在${expire_date}过期`
+          );
         } else {
-          $.result.push(`领取积分失败`);
+          $.result.push(
+            `🚕[积分] 领取失败, 账户共有积分${coin}\n${expire_balance}积分在${expire_date}过期`
+          );
         }
       } catch (e) {
         $.logErr(e, resp);
@@ -148,7 +159,6 @@ function goldLottery() {
     if ($.lid) {
       const drawCount = await getDrawAmount();
       if (drawCount > 0) {
-        $.result.push(`福利金抽奖${drawCount}次：`);
         for (let i = 0; i < drawCount; i++) {
           await $.wait(5000);
           await lotteryDraw(i);
@@ -170,7 +180,7 @@ function getDrawAmount() {
         if (obj.code == 0) {
           $.log(`福利金抽奖次数：${obj.data.eliminate_info.base_share_amount}`);
           $.result.push(
-            `福利金抽奖次数：${obj.data.eliminate_info.base_share_amount}`
+            `🚕[福利金抽奖] 次数：${obj.data.eliminate_info.base_share_amount}`
           );
         }
       } catch (e) {
@@ -190,7 +200,7 @@ function lotteryDraw(index) {
         $.log(`福利金抽奖，接口响应：${data}`);
         let obj = JSON.parse(data);
         if (obj.code === 0) {
-          $.result.push(`第${index}次抽奖结果：${obj.data.prize.name}`);
+          $.result.push(`🚕[福利金抽奖] 第${index}次：${obj.data.prize.name}`);
         }
       } catch (e) {
         $.logErr(e, resp);
@@ -209,7 +219,7 @@ function dayLottery() {
         url:
           "https://manhattan.webapp.xiaojukeji.com/marvel/api/manhattan-signin-task/signIn/execute",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           token: $.token,
@@ -228,7 +238,7 @@ function dayLottery() {
                 `天天有奖签到结果：${gift.displayJson.displayName} ${gift.displayValue} ${gift.displayUnit}`
               );
               $.result.push(
-                `${gift.displayJson.displayName} ${gift.displayValue} ${gift.displayUnit} 过期 ${gift.giftEndDate}`
+                `🚕[天天有奖] ${gift.displayJson.displayName} ${gift.displayValue} ${gift.displayUnit} 过期 ${gift.giftEndDate}`
               );
             });
           }
@@ -236,8 +246,8 @@ function dayLottery() {
           // await DailyLotteryRestart(token, activityId, clientId);
           // }
           else {
-            $.log(`天天有奖签到失败，响应异常：${obj.errorMsg}`);
-            $.result.push(`天天有奖签到失败，响应异常：${obj.errorMsg}`);
+            $.log(`天天有奖签到失败，${obj.errorMsg}`);
+            $.result.push(`🚕[天天有奖] 签到失败，${obj.errorMsg}`);
           }
         } catch (e) {
           $.logErr(e, resp);
@@ -251,9 +261,14 @@ function dayLottery() {
   });
 }
 
+// 领取福利金
 function getOrderGold() {
   return new Promise(async (resolve) => {
     let orderList = await getOrderList();
+    if (orderList.length === 0) {
+      $.result.push(`🚕[订单福利金] 今天没有忘记领取的福利金`);
+      resolve();
+    }
     let rewardList = [];
     let total = 0;
     orderList.forEach((element) => {
@@ -263,7 +278,7 @@ function getOrderGold() {
 
     await Promise.all(rewardList);
 
-    $.result.push(`本日领取福利金${total}。`);
+    $.result.push(`🚕[订单福利金] 捡回遗忘的福利金 ${total}。`);
     resolve();
   });
 }
@@ -271,12 +286,12 @@ function getOrderGold() {
 function getOrderList() {
   return new Promise((resolve) => {
     let url = `https://api.udache.com/gulfstream/passenger/v2/other/pListReward?token=${$.token}`;
-    $.get(url, (err, resp, data) => {
+    $.get({ url }, (err, resp, data) => {
       $.log(`获取待领取的福利金，接口响应：${data}`);
       try {
         let obj = JSON.parse(data);
         if (obj.errno == 0) {
-          resolve(obj.data);
+          resolve(obj.data || []);
         }
       } catch (e) {
         $.logErr(e, resp);
@@ -287,7 +302,6 @@ function getOrderList() {
   });
 }
 
-// 领取福利金
 function getRewards(orderId) {
   return new Promise((resolve) => {
     let url = `https://api.udache.com/gulfstream/passenger/v2/otherpGetRewards?order_id=${orderId}&token=${$.token}`;
@@ -303,15 +317,12 @@ function getUserInfo() {
     let url = `https://quartz.xiaojukeji.com/volcano/quartz/user/info?ts=${new Date().getTime()}&app_id=common&token=${
       $.token
     }&source_id=wdcn_1000&partition_id=1007`;
-    $.get(url, (err, resp, data) => {
+    $.get({ url }, (err, resp, data) => {
       $.log(`获取用户信息，接口响应：${data}`);
       try {
         let obj = JSON.parse(data);
         if (obj.errno === 0) {
-          $.result.push(`💡账户共有积分${userInfo.data.account.dcoin.coin}`);
-          $.result.push(
-            `${userInfo.data.account.dcoin.expire_balance}积分在${userInfo.data.account.dcoin.expire_date}过期`
-          );
+          resolve(obj.data);
         }
       } catch (e) {
         $.logErr(e, resp);
