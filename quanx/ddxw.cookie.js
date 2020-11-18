@@ -1,60 +1,49 @@
-const didiTokenKey = "didi_token";
-const didiCityIdKey = "didi_city_id";
-const didiLidKey = "didi_lid";
-const didiActivityIdKey = "didi_activity_id";
-const didiChannelIdKey = "didi_channel_id";
-const getTokenRegex = /^https?:\/\/api\.didialift\.com\/beatles\/userapi\/user\/user\/getuserinfo?.*city_id=(\d+).*&token=([^&]*)/;
-const getTokenRegex2 = /^https:\/\/as\.xiaojukeji\.com\/ep\/as\/toggles\?.*city=(\d*)&.*ticket=(.*)&/;
-const getLidRegex = /^https?:\/\/bosp-api\.xiaojukeji\.com\/bosp-api\/lottery\/info?.*lid=([^&]*)/;
-const getActivityIdRegex = /^https?:\/\/manhattan\.webapp\.xiaojukeji\.com\/marvel\/api\/manhattan\-signin\-task\/signIn\/execute/;
-const $ = new Env("滴滴出行Cookie");
+/**
+ *
+  hostname = lkyl.dianpusoft.cn
 
-const body = $request.body;
+  quanx:
+  [task_local]
+  0 9 * * * https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝, enabled=true
+  [rewrite_local]
+  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-response-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+
+  loon:
+  http-response ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
+  cron "0 9 * * *" script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝
+
+  surge:
+  [Script]
+  京东小窝 = type=cron,cronexp=0 9 * * *,timeout=60,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js,
+  京东小窝cookie = type=http-request,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+ *
+ *  
+ **/
+
+const ddxwTokenKey1 = "jd_ddxw_token1";
+const ddxwTokenKey2 = "jd_ddxw_token2";
+const getTokenRegex = /^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login/;
+const $ = new Env("东东小窝Cookie");
+
+const body = $response.body;
 const url = $request.url;
 
-if (getTokenRegex.test(url) || getTokenRegex2.test(url)) {
+if (getTokenRegex.test(url) && body) {
   try {
-    let arr = url.match(getTokenRegex);
-    // 使用备用匹配
-    if (arr === null) {
-      arr = url.match(getTokenRegex2);
+    $.log('东东小窝token响应', body)
+    const { head: { token } } = JSON.parse(body);
+    const token1 = $.getdata(ddxwTokenKey1)
+    if (!token1) {
+      $.setdata(token, ddxwTokenKey1);
+      $.log(`新的Token1：\n${token}，Token已更新。`);
+    } else {
+      $.setdata(token, ddxwTokenKey2);
+      $.log(`新的Token2：\n${token}，Token已更新。`);
     }
-    let cityId = arr[1];
-    let token = arr[2];
-    let hisToken = $.getdata(didiTokenKey);
-    $.log(`city：${cityId}，token：${token}`);
-    $.setdata(cityId, didiCityIdKey);
-    $.setdata(token, didiTokenKey);
-    $.log(`新的Token：\n${token}，旧的Token：\n${hisToken}，Token已更新。`);
-    $.msg($.name, "🎉滴滴出行写入Token成功！！");
+    $.msg($.name, "🎉东东小窝写入Token成功！！");
   } catch (err) {
-    $.logErr(`滴滴出行写入Token失败，执行异常：${err}。`);
-    $.msg($.name, "❌滴滴出行写入Token失败");
-  }
-} else if (getLidRegex.test(url)) {
-  try {
-    let arr = url.match(getLidRegex);
-    let lid = arr[1];
-    let hisLid = $.getdata(didiLidKey);
-    $.log(`新的lid：${lid}，旧的lid：${hisLid}`);
-    $.setdata(lid, didiLidKey);
-    $.msg($.name, "🎉滴滴出行写入lid成功！！");
-  } catch (err) {
-    $.logErr(`滴滴出行写入lid失败，执行异常：${err}。`);
-    $.msg($.name, "❌滴滴出行写入lid失败");
-  }
-} else if (getActivityIdRegex.test(url)) {
-  try {
-    let obj = JSON.parse(body);
-    $.setdata(didiActivityIdKey, obj.activityId);
-    $.setdata(didiChannelIdKey, obj.channelId);
-    $.log(
-      `获取天天有奖ActivityId和ChannelId成功：${obj.activityId}，${obj.channelId}`
-    );
-    $.msg($.name, "获取天天有奖ActivityId和ChannelId成功");
-  } catch (err) {
-    $.logErr(`获取天天有奖ActivityId异常：${err}`);
-    $.msg($.name, "❌获取天天有奖ActivityId异常");
+    $.logErr(`东东小窝写入Token失败，执行异常：${err}。`);
+    $.msg($.name, "❌东东小窝写入Token失败");
   }
 }
 
