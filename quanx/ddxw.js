@@ -28,9 +28,13 @@ $.token = [
   $.getdata("jd_ddxw_token1") || "",
   $.getdata("jd_ddxw_token2") || "",
 ];
+$.woBLottery = $.getdata("jd_wob_lottery")
+  ? $.getdata("jd_wob_lottery") === "true"
+  : false;
 $.result = [];
 $.cookieArr = [];
 $.allTask = [];
+$.drawCenterInfo = {};
 
 !(async () => {
   if (!getCookies()) return;
@@ -47,11 +51,13 @@ $.allTask = [];
       await browseTasks($.token[i]);
       await getInviteId($.token[i]);
       await createAssistUser($.token[i]);
+      await getDrawCenter($.token[i]);
+      await drawTask($.token[i]);
       const endHomeInfo = await getHomeInfo($.token[i]);
       $.result.push(
         `任务前窝币：${startHomeInfo.woB}`,
         `任务后窝币：${endHomeInfo.woB}`,
-        `获得窝币：${endHomeInfo.woB - startHomeInfo.woB}`,
+        `获得窝币：${endHomeInfo.woB - startHomeInfo.woB}`
       );
       // await followShops($.token[i]);
       // await followChannels($.token[i]);
@@ -110,6 +116,56 @@ function getAllTask(token) {
         try {
           const { body } = JSON.parse(data);
           $.allTask = body;
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+async function drawTask(token) {
+  const { freeDrawNum, paidDrawNum, freeDrawCount } = $.drawCenterInfo;
+  const freeCount = Math.min(freeDrawNum, freeDrawCount);
+  for (let i = 0; i < freeCount; i++) {
+    await draw(token, i);
+  }
+  if ($.woBLottery) {
+    for (let j = 0; j < paidDrawNum; j++) {
+      await draw(token, freeDrawNum + j - 1);
+    }
+  }
+}
+
+function draw(token, i) {
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl(`ssjj-draw-record/draw/${$.drawCenterInfo.id}`, {}, token),
+      (err, resp, data) => {
+        try {
+          const { head = {}, body = {} } = JSON.parse(data);
+          $.log(`\n${head.msg}\n${data}`);
+          $.result.push(`第${i + 1}次抽奖：${body.name ? body.name : head.msg}`);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+function getDrawCenter(token) {
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl("ssjj-draw-center/queryDraw", {}, token),
+      (err, resp, data) => {
+        try {
+          const { body = {} } = JSON.parse(data);
+          $.drawCenterInfo = { ...body.center, freeDrawCount: body.freeDrawCount };
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -263,15 +319,28 @@ function browseTasks(token) {
       browseCommodity.ssjjTaskInfo.awardOfDayNum,
       browseMeeting.ssjjTaskInfo.awardOfDayNum
     );
+    const status = [true, true, true, true];
     for (let i = 0; i < times; i++) {
-      await browseShopFun(token);
-      await getAllTask(token);
-      await browseChannelFun(token);
-      await getAllTask(token);
-      await browseCommodityFun(token);
-      await getAllTask(token);
-      await browseMeetingFun(token);
-      await getAllTask(token);
+      if (status[0]) {
+        status[0] = await browseShopFun(token);
+        await getAllTask(token);
+        await $.wait(300);
+      }
+      if (status[1]) {
+        status[1] = await browseChannelFun(token);
+        await getAllTask(token);
+        await $.wait(300);
+      }
+      if (status[2]) {
+        status[2] = await browseCommodityFun(token);
+        await getAllTask(token);
+        await $.wait(300);
+      }
+      if (status[3]) {
+        status[3] = await browseMeetingFun(token);
+        await getAllTask(token);
+        await $.wait(300);
+      }
     }
     resolve();
   });
@@ -293,8 +362,8 @@ function browseShopFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
-          $.log(`\n${head.code !== 200}`);
-          resolve(head.code !== 200);
+          $.log(`\n${head.code === 200}`);
+          resolve(head.code === 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -321,7 +390,7 @@ function browseChannelFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
-          resolve(head.code !== 200);
+          resolve(head.code === 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -350,7 +419,7 @@ function browseCommodityFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
-          resolve(head.code !== 200);
+          resolve(head.code === 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -377,7 +446,7 @@ function browseMeetingFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
-          resolve(head.code !== 200);
+          resolve(head.code === 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -391,9 +460,9 @@ function browseMeetingFun(token) {
 function showMsg() {
   return new Promise((resolve) => {
     $.result.push(
-      "关注频道，关注店铺，加购商品任务只能执行一次，建议手动执行"
+      "关注频道，关注店铺，加购商品任务\n只能执行一次，建议手动执行"
     );
-    $.msg($.name, "", $.result.join("\n"));
+    $.msg($.name, "", `\n${$.result.join("\n")}`);
     resolve();
   });
 }
