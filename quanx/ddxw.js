@@ -1,7 +1,29 @@
+/**
+ *
+  hostname = lkyl.dianpusoft.cn
+
+  quanx:
+  [task_local]
+  0 9 * * * https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝, enabled=true
+  [rewrite_local]
+  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-response-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+
+  loon:
+  http-response ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
+  cron "0 9 * * *" script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝
+
+  surge:
+  [Script]
+  京东小窝 = type=cron,cronexp=0 9 * * *,timeout=60,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js,
+  京东小窝cookie = type=http-response,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+ *
+ *  
+ **/
 const $ = new Env("东东小窝");
 
 const jdCookieNode = $.isNode() ? require("./jdCookie.js") : "";
 const JD_API_HOST = "https://lkyl.dianpusoft.cn/api/";
+$.testTaskId = "1329223012752433153"; // 测试邀请任务
 $.token = [
   $.getdata("jd_ddxw_token1") || "",
   $.getdata("jd_ddxw_token2") || "",
@@ -19,10 +41,20 @@ $.allTask = [];
         cookie.match(/pt_pin=(.+?);/) && cookie.match(/pt_pin=(.+?);/)[1]
       );
       console.log(`\n开始【京东账号${i + 1}】${userName}`);
+      const startHomeInfo = await getHomeInfo($.token[i]);
       await getAllTask($.token[i]);
+      await signIn($.token[i]);
       await browseTasks($.token[i]);
-      await followShops($.token[i]);
-      await followChannels($.token[i]);
+      await getInviteId($.token[i]);
+      await createAssistUser($.token[i]);
+      const endHomeInfo = await getHomeInfo($.token[i]);
+      $.result.push(
+        `任务前窝币：${startHomeInfo.woB}`,
+        `任务后窝币：${endHomeInfo.woB}`,
+        `获得窝币：${endHomeInfo.woB - startHomeInfo.woB}`,
+      );
+      // await followShops($.token[i]);
+      // await followChannels($.token[i]);
     }
   }
   await showMsg();
@@ -52,6 +84,24 @@ function getCookies() {
   return true;
 }
 
+function getHomeInfo(token) {
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl("ssjj-wo-home-info/queryByUserId/2", {}, token),
+      (err, resp, data) => {
+        try {
+          const { body } = JSON.parse(data);
+          resolve(body);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
 function getAllTask(token) {
   return new Promise((resolve) => {
     $.get(
@@ -60,6 +110,68 @@ function getAllTask(token) {
         try {
           const { body } = JSON.parse(data);
           $.allTask = body;
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+function signIn(token) {
+  const clock = $.allTask.find((x) => x.ssjjTaskInfo.type === 2);
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl(`ssjj-task-record/clock/${clock.ssjjTaskInfo.id}`, {}, token),
+      (err, resp, data) => {
+        try {
+          const { head = {} } = JSON.parse(data);
+          $.log(`\n${head.msg}\n${data}`);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+function createAssistUser(token) {
+  const invite = $.allTask.find((x) => x.ssjjTaskInfo.type === 1);
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl(
+        `ssjj-task-record/createAssistUser/${$.testTaskId}/${invite.ssjjTaskInfo.id}`,
+        {},
+        token
+      ),
+      (err, resp, data) => {
+        try {
+          const { head = {} } = JSON.parse(data);
+          $.log(`\n${head.msg}\n${data}`);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+function getInviteId(token) {
+  const clock = $.allTask.find((x) => x.ssjjTaskInfo.type === 2);
+  return new Promise((resolve) => {
+    $.get(
+      taskUrl(`ssjj-task-record/createInviteUser`, {}, token),
+      async (err, resp, data) => {
+        try {
+          const { body = {}, head = {} } = JSON.parse(data);
+          $.log(`\n${head.msg}\n${data}`);
+          $.log(`\n你的shareID：${body.id}`);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -117,7 +229,6 @@ function followChannels(token) {
 }
 
 function addCommodityToCart() {
-  // TODO:
   const browseChannel = $.allTask.find((x) => x.ssjjTaskInfo.type === 7);
   return new Promise((resolve) => {
     $.get(
@@ -182,6 +293,8 @@ function browseShopFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
+          $.log(`\n${head.code !== 200}`);
+          resolve(head.code !== 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -208,6 +321,7 @@ function browseChannelFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
+          resolve(head.code !== 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -236,6 +350,7 @@ function browseCommodityFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
+          resolve(head.code !== 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -262,6 +377,7 @@ function browseMeetingFun(token) {
         try {
           const { head = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
+          resolve(head.code !== 200);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -274,6 +390,9 @@ function browseMeetingFun(token) {
 
 function showMsg() {
   return new Promise((resolve) => {
+    $.result.push(
+      "关注频道，关注店铺，加购商品任务只能执行一次，建议手动执行"
+    );
     $.msg($.name, "", $.result.join("\n"));
     resolve();
   });
