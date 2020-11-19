@@ -6,16 +6,16 @@
   [task_local]
   0 9 * * * https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝, enabled=true
   [rewrite_local]
-  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-response-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-request-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
 
   loon:
-  http-response ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
+  http-request ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
   cron "0 9 * * *" script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝
 
   surge:
   [Script]
   京东小窝 = type=cron,cronexp=0 9 * * *,timeout=60,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js,
-  京东小窝cookie = type=http-response,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+  京东小窝cookie = type=http-request,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
  *
  *  
  **/
@@ -25,20 +25,20 @@ const ddxwTokenKey2 = "jd_ddxw_token2";
 const getTokenRegex = /^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login/;
 const $ = new Env("东东小窝Cookie");
 
-const body = $response.body;
+const body = $request.body;
 const url = $request.url;
 
-if (getTokenRegex.test(url) && body) {
+if (getTokenRegex.test(url)) {
   try {
     $.log('东东小窝token响应', body)
-    const { head: { token } } = JSON.parse(body);
+    const obj = JSON.parse(body);
     const token1 = $.getdata(ddxwTokenKey1)
     if (!token1) {
-      $.setdata(token, ddxwTokenKey1);
-      $.log(`新的Token1：\n${token}，Token已更新。`);
+      $.setdata(obj.body.userName, ddxwTokenKey1);
+      $.log(`新的Token1：\n${obj.body.userName}，Token已更新。`);
     } else {
-      $.setdata(token, ddxwTokenKey2);
-      $.log(`新的Token2：\n${token}，Token已更新。`);
+      $.setdata(obj.body.userName, ddxwTokenKey2);
+      $.log(`新的Token2：\n${obj.body.userName}，Token已更新。`);
     }
     $.msg($.name, "🎉东东小窝写入Token成功！！");
   } catch (err) {

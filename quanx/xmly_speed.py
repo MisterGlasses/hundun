@@ -25,7 +25,7 @@ SCKEY = ''                  # Server酱的SCKEY; secrets可填
 TG_BOT_TOKEN = ''           # tg机器人的TG_BOT_TOKEN; secrets可填
 TG_USER_ID = ''             # tg机器人的TG_USER_ID; secrets可填
 TG_PROXY_IP = ''            # tg机器人的TG_PROXY_IP; secrets可填
-TG_PROXY_PORT = ''          # tg机器人的TG_PROXY_PORT; secrets可填
+TG_PROXY_PORT = ''               # tg机器人的TG_PROXY_PORT; secrets可填
 
 ###################################################
 # 对应方案1:  GitHub action自动运行,此处无需填写;
@@ -951,7 +951,8 @@ def telegram(title, content):
     url=f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     payload = {'chat_id': str(TG_USER_ID), 'text': f"""{title}\n\n{content}""", 'disable_web_page_preview': 'true'}
-    proxies = {"http": f""http://{TG_PROXY_IP}:{TG_PROXY_PORT}"", "https": f""http://{TG_PROXY_IP}:{TG_PROXY_PORT}"" } 
+    proxyStr = "http://{}:{}".format(TG_PROXY_IP, TG_PROXY_PORT)
+    proxies = {"http": proxyStr, "https": proxyStr } 
     response = requests.post(url=url,headers=headers, params=payload,proxies=proxies)
     print(response.text)
 

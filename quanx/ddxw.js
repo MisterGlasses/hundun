@@ -6,16 +6,16 @@
   [task_local]
   0 9 * * * https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝, enabled=true
   [rewrite_local]
-  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-response-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+  ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login url script-request-body https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
 
   loon:
-  http-response ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
+  http-request ^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js, requires-body=true, timeout=10, tag=京东小窝cookie
   cron "0 9 * * *" script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js, tag=京东小窝
 
   surge:
   [Script]
   京东小窝 = type=cron,cronexp=0 9 * * *,timeout=60,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.js,
-  京东小窝cookie = type=http-response,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
+  京东小窝cookie = type=http-request,pattern=^https\:\/\/lkyl\.dianpusoft\.cn\/api\/user\-info\/login,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/whyour/hundun/master/quanx/ddxw.cookie.js
  *
  *  
  **/
@@ -24,10 +24,11 @@ const $ = new Env("东东小窝");
 const jdCookieNode = $.isNode() ? require("./jdCookie.js") : "";
 const JD_API_HOST = "https://lkyl.dianpusoft.cn/api/";
 $.testTaskId = "1329223012752433153"; // 测试邀请任务
-$.token = [
+$.userNames = [
   $.getdata("jd_ddxw_token1") || "",
   $.getdata("jd_ddxw_token2") || "",
 ];
+$.tokens = [];
 $.woBLottery = $.getdata("jd_wob_lottery")
   ? $.getdata("jd_wob_lottery") === "true"
   : false;
@@ -37,7 +38,8 @@ $.allTask = [];
 $.drawCenterInfo = {};
 
 !(async () => {
-  if (!getCookies()) return;
+  const hasToken = await getCookies();
+  if (!hasToken) return;
   for (let i = 0; i < $.cookieArr.length; i++) {
     const cookie = $.cookieArr[i];
     if (cookie) {
@@ -45,22 +47,22 @@ $.drawCenterInfo = {};
         cookie.match(/pt_pin=(.+?);/) && cookie.match(/pt_pin=(.+?);/)[1]
       );
       console.log(`\n开始【京东账号${i + 1}】${userName}`);
-      const startHomeInfo = await getHomeInfo($.token[i]);
-      await getAllTask($.token[i]);
-      await signIn($.token[i]);
-      await browseTasks($.token[i]);
-      await getInviteId($.token[i]);
-      await createAssistUser($.token[i]);
-      await getDrawCenter($.token[i]);
-      await drawTask($.token[i]);
-      const endHomeInfo = await getHomeInfo($.token[i]);
+      const startHomeInfo = await getHomeInfo($.tokens[i]);
+      await getAllTask($.tokens[i]);
+      await signIn($.tokens[i]);
+      await browseTasks($.tokens[i]);
+      await getInviteId($.tokens[i]);
+      await createAssistUser($.tokens[i]);
+      await getDrawCenter($.tokens[i]);
+      await drawTask($.tokens[i]);
+      const endHomeInfo = await getHomeInfo($.tokens[i]);
       $.result.push(
         `任务前窝币：${startHomeInfo.woB}`,
         `任务后窝币：${endHomeInfo.woB}`,
         `获得窝币：${endHomeInfo.woB - startHomeInfo.woB}`
       );
-      // await followShops($.token[i]);
-      // await followChannels($.token[i]);
+      // await followShops($.tokens[i]);
+      // await followChannels($.tokens[i]);
     }
   }
   await showMsg();
@@ -68,7 +70,7 @@ $.drawCenterInfo = {};
   .catch((e) => $.logErr(e))
   .finally(() => $.done());
 
-function getCookies() {
+async function getCookies() {
   if ($.isNode()) {
     $.cookieArr = Object.values(jdCookieNode);
   } else {
@@ -83,11 +85,43 @@ function getCookies() {
     );
     return false;
   }
-  if (!$.token[0]) {
+  await getTokens();
+  if (!$.tokens[0]) {
     $.msg($.name, "【提示】请先去东东小窝获取token");
     return false;
   }
   return true;
+}
+
+async function getTokens() {
+  const userNames = Array.from(new Set($.userNames));
+  const result = [];
+  for (const name of userNames) {
+    const token = await getToken(name);
+    if (token) {
+      result.push(token);
+    }
+  }
+  $.tokens = result;
+}
+
+function getToken(name) {
+  return new Promise((resolve) => {
+    $.post(
+      postTaskUrl("user-info/login", { body: { client: 2, userName: name } }),
+      (err, resp, data) => {
+        try {
+          const { head = {} } = JSON.parse(data);
+          $.log(`\n${head.msg}\n${data}`);
+          resolve(head.token);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
 }
 
 function getHomeInfo(token) {
@@ -147,7 +181,9 @@ function draw(token, i) {
         try {
           const { head = {}, body = {} } = JSON.parse(data);
           $.log(`\n${head.msg}\n${data}`);
-          $.result.push(`第${i + 1}次抽奖：${body.name ? body.name : head.msg}`);
+          $.result.push(
+            `第${i + 1}次抽奖：${body.name ? body.name : head.msg}`
+          );
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -165,7 +201,10 @@ function getDrawCenter(token) {
       (err, resp, data) => {
         try {
           const { body = {} } = JSON.parse(data);
-          $.drawCenterInfo = { ...body.center, freeDrawCount: body.freeDrawCount };
+          $.drawCenterInfo = {
+            ...body.center,
+            freeDrawCount: body.freeDrawCount,
+          };
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -486,6 +525,29 @@ function taskUrl(function_path, body = {}, token) {
       token,
     },
   };
+}
+
+function postTaskUrl(function_path, body = {}, token) {
+  const url = {
+    url: `${JD_API_HOST}user-info/login`,
+    body: JSON.stringify(body),
+    headers: {
+      "Accept-Encoding": "gzip, deflate, br",
+      Accept: "*/*",
+      Connection: "keep-alive",
+      Referer:
+        "https://lkyl.dianpusoft.cn/client/?lkEPin=34168c9ed9f3d3d65b38e7734a7f8b78&token=AAFftRX6ADBv728uQAKep9PzCLyChE14LHgMghEYE2fPjt0eGG3F3ZfDTOVG12w_KELogxhaNe8",
+      "Content-Type": "application/json",
+      Host: "lkyl.dianpusoft.cn",
+      "User-Agent":
+        "jdapp;iPhone;9.2.2;14.2;93c009c471d3d33feeef2f4f3ae808c64cdd42b2;network/wifi;supportApplePay/1;hasUPPay/0;pushNoticeIsOpen/0;model/iPhone13,2;hasOCPay/0;appBuild/167422;supportBestPay/0;jdSupportDarkMode/0;addressid/2352393936;pv/28.77;apprpd/MyJD_MyActivity;ref/MyJdGameToolController;psq/7;ads/;psn/93c009c471d3d33feeef2f4f3ae808c64cdd42b2|147;jdv/0|androidapp|t_335139774|appshare|CopyURL|1605671136013|1605671137;adk/;app_device/IOS;pap/JA2015_311210|9.2.2|IOS 14.2;Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148;supportJDSHWK/1",
+      "Accept-Language": "zh-cn",
+    },
+  };
+  if (token) {
+    url.headers.token = token;
+  }
+  return url;
 }
 
 function isJsonString(str) {
