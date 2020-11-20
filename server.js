@@ -20,6 +20,7 @@ var Shi = require('./app/models/shi'); //获取 yiyan model 信息
 var Ci = require('./app/models/ci'); //获取 yiyan model 信息
 var LunYu = require('./app/models/lunyu'); //获取 yiyan model 信息
 var ShiJing = require('./app/models/shijing'); //获取 yiyan model 信息
+var Code = require('./app/models/code'); //获取 share code
 var port = process.env.PORT || 8080; // 设置启动端口
 app.set('superSecret', config.secret); // 设置app 的超级密码--用来生成摘要的密码
 const whiteList = ['https://ninesix.cc', 'https://whyour.cn', 'http://localhost:8080'];
@@ -78,6 +79,40 @@ app.get('/shici', function (req, res) {
 
 });
 
+app.get('/code/:code/:name', function (req, res) {
+  console.log(req.params.code)
+  console.log(req.params.name)
+
+  Code.findOneAndUpdate(
+    { name: req.params.name },
+    {
+      value: req.params.code,
+      name: req.params.name,
+      type: 1,
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+    (err, data) => {
+      console.log(data);
+      res.send({ code: 200, data });
+    }
+  );
+});
+
+app.get('/code', function (req, res) {
+  Code.aggregate([{ $sample: { size: 1 } }], function (err, data) {
+    if (err) throw err;
+    res.send({ code: 200, data: data[0] });
+  });
+
+});
+
+app.get('/code/count', function (req, res) {
+  Code.count({}, function( err, count){
+    if (err) throw err;
+    res.send({ code: 200, data: count });
+  })
+});
+
 app.get('/yi', function (req, res) {
 
   var user = new User({
@@ -102,28 +137,28 @@ app.get('/calendar', async function (req, res) {
   res.send(text);
 });
 
-app.get('/worktile', function (req, res) {
-  const result = checkSignature(req, res);
-  res.send(result);
-  console.log('req.body', req.body);
-});
+// app.get('/worktile', function (req, res) {
+//   const result = checkSignature(req, res);
+//   res.send(result);
+//   console.log('req.body', req.body);
+// });
 
-app.post('/worktile', function (req, res) {
-  const str = req.body.xml.encrypt || req.body.xml.Encrypt || '';
-  if (str) {
-    const xmlResult = checkSignature(req, res, str);
-    parseString(xmlResult, { trim: true, explicitArray: false }, (err, result) => {
-      if (result && result.xml) {
-        console.log('result', result.xml);
-      }
-    })
-  }
-  console.log('req.body', req.body);
-  console.log('req.query', req.query);
+// app.post('/worktile', function (req, res) {
+//   const str = req.body.xml.encrypt || req.body.xml.Encrypt || '';
+//   if (str) {
+//     const xmlResult = checkSignature(req, res, str);
+//     parseString(xmlResult, { trim: true, explicitArray: false }, (err, result) => {
+//       if (result && result.xml) {
+//         console.log('result', result.xml);
+//       }
+//     })
+//   }
+//   console.log('req.body', req.body);
+//   console.log('req.query', req.query);
 
-  res.send('success');
+//   res.send('success');
 
-});
+// });
 
 function sha1(str) {
   const md5sum = crypto.createHash('sha1');
@@ -187,4 +222,4 @@ function checkSignature(req, res, encrypt) {
 }
 
 app.listen(port);
-console.log('Magic happens at http://localhost:' + port);
+console.log('you are a good man');
