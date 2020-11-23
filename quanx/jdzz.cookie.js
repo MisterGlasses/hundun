@@ -28,8 +28,12 @@ const headers = $request.headers;
 
 if (getTokenRegex.test(url)) {
   try {
-    $.log('东东小窝token响应', headers)
-    const token = headers['Cookie'].match(/wq_auth_token\=(\S*)\;cartLastOpTime=/)[1];
+    $.log('京东赚赚token响应', headers)
+    let token = headers['Cookie'].match(/wq_auth_token\=(\S*)\;/)[1];
+    token = token.split(';')[0];
+    if (!/^[0-9A-Z]+$/.test(token)) {
+      $.logErr(`京东赚赚写入Token失败，请先手动登录小程序点击赚好礼签到`);
+    }
     const token1 = $.getdata(jdzzTokenKey1)
     if (!token1) {
       $.setdata(token, jdzzTokenKey1);
@@ -40,7 +44,7 @@ if (getTokenRegex.test(url)) {
     }
     $.msg($.name, "🎉京东赚赚写入Token成功！！");
   } catch (err) {
-    $.logErr(`东东小窝写入Token失败，执行异常：${err}。`);
+    $.logErr(`京东赚赚写入Token失败，执行异常：${err}。`);
     $.msg($.name, "❌京东赚赚写入Token失败");
   }
 }
