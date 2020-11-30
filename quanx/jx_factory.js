@@ -1,11 +1,14 @@
-/**
- *
-  参考自： https://raw.githubusercontent.com/lxk0301/jd_scripts/master/jd_dreamFactory.js
-  多谢贡献： https://github.com/MoPoQAQ
-  * 添加随机助力
-  * 自动开团助力
-  * box设置不自动充能
-  * 可设置每天通知时间
+/*
+ * @Author: whyour
+ * @Github: https://github.com/whyour
+ * @Date: 2020-11-29 13:14:19
+ * @LastEditors: whyour
+ * @LastEditTime: 2020-11-30 14:01:44
+ * 多谢贡献： https://github.com/MoPoQAQ
+ * 添加随机助力
+ * 自动开团助力
+ * box设置不自动充能
+ * 可设置每天通知时间
   quanx:
   [task_local]
   10 * * * * https://raw.githubusercontent.com/lxk0301/jd_scripts/master/jd_dreamFactory.js, tag=京喜工厂, enabled=true
@@ -222,6 +225,54 @@ function collectElectricity(facId, master) {
   });
 }
 
+function pickUserComponents(pin, factId) {
+  return new Promise(async (resolve) => {
+    $.get(
+      taskUrl(
+        "usermaterial/GetUserComponent",
+        `pin=${pin}&_time=${Date.now()}`
+      ),
+      (err, resp, data) => {
+        try {
+          const { msg, data: { componentList = [] } = {} } = JSON.parse(data);
+          $.log(`\n获取好友零件：${msg}\n${$.showLog ? data : ''}`);
+          if (componentList.length > 0) {
+            for (let i = 0; i < componentList.length; i++) {
+              const {placeId} = componentList[i];
+              await pickUpComponent(placeId, pin);
+            }
+          }
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+function pickUpComponent(placeId, pin) {
+  return new Promise(async (resolve) => {
+    $.get(
+      taskUrl(
+        "usermaterial/PickUpComponent",
+        `pin=${pin}&placeId=${placeId}&_time=${Date.now()}`
+      ),
+      (err, resp, data) => {
+        try {
+          const { msg, data: { increaseElectric } = {} } = JSON.parse(data);
+          $.log(`\n拾取好友零件：${msg}，增加电力 ${increaseElectric}\n${$.showLog ? data : ''}`);
+        } catch (e) {
+          $.logErr(e, resp);
+        } finally {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
 function getTaskList() {
   return new Promise(async (resolve) => {
     $.get(taskListUrl("GetUserTaskStatusList"), async (err, resp, data) => {
@@ -388,9 +439,10 @@ function stealFriend() {
           const canCollectFriends = list.filter((x) => x.collectFlag === 1);
           for (let i = 0; i < canCollectFriends.length; i++) {
             const { encryptPin, key } = canCollectFriends[i];
-            const facId = await getFactoryIdByPin(encryptPin);
-            if (facId) {
-              await collectElectricity(facId, key);
+            const factId = await getFactoryIdByPin(encryptPin);
+            if (factId) {
+              await pickUserComponents(encryptPin, factId)
+              await collectElectricity(factId, key);
             }
           }
         } catch (e) {
