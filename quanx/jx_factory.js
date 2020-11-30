@@ -3,7 +3,7 @@
  * @Github: https://github.com/whyour
  * @Date: 2020-11-29 13:14:19
  * @LastEditors: whyour
- * @LastEditTime: 2020-11-30 14:01:44
+ * @LastEditTime: 2020-11-30 14:21:34
  * 多谢贡献： https://github.com/MoPoQAQ
  * 添加随机助力
  * 自动开团助力
@@ -232,7 +232,7 @@ function pickUserComponents(pin, factId) {
         "usermaterial/GetUserComponent",
         `pin=${pin}&_time=${Date.now()}`
       ),
-      (err, resp, data) => {
+      async (err, resp, data) => {
         try {
           const { msg, data: { componentList = [] } = {} } = JSON.parse(data);
           $.log(`\n获取好友零件：${msg}\n${$.showLog ? data : ''}`);
@@ -262,7 +262,7 @@ function pickUpComponent(placeId, pin) {
       (err, resp, data) => {
         try {
           const { msg, data: { increaseElectric } = {} } = JSON.parse(data);
-          $.log(`\n拾取好友零件：${msg}，增加电力 ${increaseElectric}\n${$.showLog ? data : ''}`);
+          $.log(`\n拾取好友零件：${msg}，获得电力 ${increaseElectric}\n${$.showLog ? data : ''}`);
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -436,13 +436,12 @@ function stealFriend() {
         try {
           const { msg, data: { list = [] } = {} } = JSON.parse(data);
           $.log(`\n获取工厂好友：${msg}\n${$.showLog ? data : ''}`);
-          const canCollectFriends = list.filter((x) => x.collectFlag === 1);
-          for (let i = 0; i < canCollectFriends.length; i++) {
-            const { encryptPin, key } = canCollectFriends[i];
+          for (let i = 0; i < list.length; i++) {
+            const { encryptPin, key, collectFlag } = list[i];
             const factId = await getFactoryIdByPin(encryptPin);
             if (factId) {
               await pickUserComponents(encryptPin, factId)
-              await collectElectricity(factId, key);
+              collectFlag && await collectElectricity(factId, key);
             }
           }
         } catch (e) {
@@ -463,7 +462,9 @@ function getFactoryIdByPin(pin) {
         try {
           const { msg, data: { factoryList = [] } = {} } = JSON.parse(data);
           $.log(`\n获取工厂信息：${msg}\n${$.showLog ? data : ''}`);
-          resolve(factoryList[0].factoryId);
+          if (factoryList[0]) {
+            resolve(factoryList[0].factoryId);
+          }
         } catch (e) {
           $.logErr(e, resp);
         } finally {
