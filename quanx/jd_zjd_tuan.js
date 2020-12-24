@@ -78,9 +78,6 @@ function submitInviteId(userName) {
         try {
           const { code, data = {} } = JSON.parse(_data);
           $.log(`\n邀请码提交：${code}\n${$.showLog ? _data : ''}`);
-          if (data.value) {
-            $.result.push('【邀请码】提交成功！');
-          }
         } catch (e) {
           $.logErr(e, resp);
         } finally {
@@ -141,8 +138,8 @@ function getUserTuanInfo() {
   });
 }
 
-function createTuan(id) {
-  let body = { activityIdEncrypted: id, channel: 'FISSION_BEAN' };
+function createTuan() {
+  let body = { activityIdEncrypted: 'BlAl8fC0wCo\n', channel: 'FISSION_BEAN' };
   return new Promise(resolve => {
     $.get(taskTuanUrl('vvipclub_distributeBean_startAssist', body), async (err, resp, data) => {
       try {
